@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # QuickBite — Full-Stack Food Delivery Order Processing System
 
 FastAPI + RabbitMQ + PostgreSQL + Flutter (Web / Android / iOS).
@@ -196,3 +197,6 @@ wildcard CORS and default broker credentials.
 | A worker keeps restarting | `docker compose logs <service>` — config errors are raised at startup on purpose |
 | Orders stuck in `PENDING` | check `docker compose logs outbox-dispatcher` and the `outbox_events` table (`last_error` column) |
 | Re-seed from scratch | `docker compose run --rm seed --reset` (deletes orders/users/menus) |
+=======
+# QuickBite
+>>>>>>> 114e14d68a2884bdbeca10f78b3d0f97eb34a0ae
