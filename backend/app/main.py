@@ -25,7 +25,7 @@ from app.api.errors import (
     http_exception_handler,
     validation_exception_handler,
 )
-from app.api.routes import auth, health
+from app.api.routes import admin, auth, health, orders, restaurants
 from app.config import get_settings
 from app.domain.ids import new_request_id
 from app.request_context import set_request_id
@@ -140,6 +140,9 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(restaurants.router)
+    app.include_router(orders.router)
+    app.include_router(admin.router)
 
     return app
 
