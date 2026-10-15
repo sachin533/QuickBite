@@ -32,6 +32,9 @@ class UserRole(StrEnum):
 
 class OutboxState(StrEnum):
     PENDING = "PENDING"
+    # Due in the future (scheduled retries); the retry scheduler flips these
+    # to PENDING when their time comes, making them eligible for publication.
+    SCHEDULED = "SCHEDULED"
     SENDING = "SENDING"
     SENT = "SENT"
     FAILED = "FAILED"

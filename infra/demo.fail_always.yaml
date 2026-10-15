@@ -1,0 +1,10 @@
+# Demo override: payment always declines — 1 attempt + 3 delayed retries
+# (≈2/10/30 s) are consumed, then the event is quarantined and the order
+# moves to PAYMENT_FAILED with an order.payment.failed notification.
+#
+#   docker compose -f compose.yaml -f infra\demo.fail_always.yaml up -d --build payment-worker
+#   docker compose up -d payment-worker        # back to normal
+services:
+  payment-worker:
+    environment:
+      PAYMENT_MODE: fail_always

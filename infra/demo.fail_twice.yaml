@@ -1,0 +1,9 @@
+# Demo override: payment declines the first two attempts and succeeds on
+# the third — exercises the bounded retry path (delays ≈2 s / ≈10 s).
+#
+#   docker compose -f compose.yaml -f infra\demo.fail_twice.yaml up -d --build payment-worker
+#   docker compose up -d payment-worker        # back to normal
+services:
+  payment-worker:
+    environment:
+      PAYMENT_MODE: fail_twice

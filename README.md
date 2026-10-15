@@ -2,10 +2,11 @@
 
 FastAPI + RabbitMQ + PostgreSQL + Flutter (Web / Android / iOS).
 
-> **Status: Milestone 1 complete** — backend scaffold, schema/state machine,
-> Compose stack, migrations, seeded accounts/menu, authentication.
-> Milestones 2–7 (checkout idempotency, outbox + workers, retries/quarantine,
-> Flutter client, tests, load/demo) are pending.
+> **Status: Milestone 3 complete** — idempotent checkout feeds a
+> transactional outbox; a confirmed dispatcher, four stage workers, bounded
+> retries (2/10/30 s → quarantine), and deduplicated consumers run the order
+> pipeline end-to-end. Milestones 4–7 (Flutter client, polish, load/demo)
+> are pending.
 
 ## Prerequisites
 
@@ -14,7 +15,7 @@ FastAPI + RabbitMQ + PostgreSQL + Flutter (Web / Android / iOS).
 | Docker / Docker Compose | 29.8.1 / v5.5.1 | runs Postgres, RabbitMQ, API |
 | Python | 3.12.8 | local development and tests |
 | uv | 0.10.6 | dependency + lockfile manager (`pip` works too) |
-| Flutter | *not installed yet* | required from Milestone 5 (Web/Android/iOS) |
+| Flutter | 3.47.7 (`E:\flutter`) | Web/Windows tooling verified; Android SDK + iOS pending (see M5 notes) |
 
 ## Clean install (from an empty checkout)
 
@@ -49,7 +50,7 @@ uv sync                              # creates .venv from uv.lock
 uv run alembic upgrade head
 uv run python -m app.seed
 uv run uvicorn app.main:app --reload --port 8000
-uv run pytest                        # expects Postgres on localhost:5432
+uv run pytest                        # expects Postgres + RabbitMQ on localhost
 ```
 
 ## Test accounts (seeded, fictional)
@@ -90,7 +91,62 @@ the development API must bind to `0.0.0.0` for that.
 
 1 initial attempt + **3 delayed retries ≈ 2 s, 10 s, 30 s**, then quarantine.
 Configured by `RETRY_MAX_ATTEMPTS` and `RETRY_DELAYS_SECONDS` in `.env`.
-Implemented in Milestone 4.
+Implemented and demonstrated (see `docs/architecture.md`); tests run the
+same mechanism with accelerated delays (0.5/1/1.5 s).
+
+## Async pipeline (Milestone 3)
+
+Compose runs six extra services alongside the API — all sharing one image,
+differing only by command:
+
+| Service | Command | Responsibility |
+|---|---|---|
+| `outbox-dispatcher` | `workers.outbox_dispatcher` | publishes due outbox rows with confirms + mandatory routing |
+| `retry-scheduler` | `workers.retry_scheduler` | releases due `SCHEDULED` retries to the dispatcher |
+| `payment-worker` | `workers.payment` | `order.created` → charge → `order.paid` |
+| `restaurant-worker` | `workers.restaurant` | `order.paid` → accept → `order.confirmed` |
+| `delivery-worker` | `workers.delivery` | `order.confirmed` → assign driver → `order.driver.assigned` |
+| `notification-worker` | `workers.notification` | persists customer notifications for `order.#` |
+
+```powershell
+docker compose up -d --build          # whole stack incl. workers
+docker compose logs -f payment-worker # watch the pipeline
+# Scale any worker safely (competing consumers on a durable queue):
+docker compose up -d --scale payment-worker=3
+```
+
+### Failure-mode demos (simulation controls)
+
+Workers read `PAYMENT_MODE` (also `RESTAURANT_MODE`, `DELIVERY_MODE`,
+`NOTIFICATION_MODE`) from the environment:
+
+```powershell
+# fail twice, succeed on the 3rd attempt (~2 s + ~10 s retries)
+docker compose -f compose.yaml -f infra\demo.fail_twice.yaml up -d --build payment-worker
+
+# always decline: 4 attempts (~42 s), then quarantine + PAYMENT_FAILED
+docker compose -f compose.yaml -f infra\demo.fail_always.yaml up -d --build payment-worker
+
+# back to normal
+docker compose up -d payment-worker
+```
+
+Evidence lives in SQL (`retry_jobs`, `quarantine_records`, `outbox_events`,
+`processed_events`) and in the RabbitMQ UI — `payment.queue` depths during a
+demo, `orders.dead-letter.queue` after exhaustion.
+
+## Tests
+
+```powershell
+docker compose up -d postgres rabbitmq   # real infra required
+cd backend
+uv run pytest                            # 59 tests
+```
+
+The suite provisions its **own database (`quickbite_test`) and RabbitMQ
+vhost (`quickbite_test`)** automatically, so it never races your running
+compose workers; migrations + seed are applied to the test database on
+every run.
 
 ## API conventions
 
@@ -107,15 +163,18 @@ Implemented in Milestone 4.
 ```
 backend/app/api/        routes, dependencies, error envelopes
 backend/app/domain/     enums, state machine, ids, money
+backend/app/messaging/  RabbitMQ topology + confirmed publisher
+backend/app/services/   checkout, events/outbox, state transitions
 backend/app/schemas/    Pydantic request/response models
 backend/app/models.py   SQLAlchemy models (14 tables)
 backend/migrations/     Alembic migrations
-backend/tests/          pytest suites (real Postgres)
-infra/                  Dockerfiles
-compose.yaml            postgres, rabbitmq, migrate, seed, api
+backend/workers/        dispatcher, retry scheduler, 4 stage workers
+backend/tests/          pytest suites (real Postgres + RabbitMQ)
+infra/                  Dockerfiles + compose demo overrides
+compose.yaml            postgres, rabbitmq, migrate, seed, api, workers
 docs/                   architecture + pinned versions
 scripts/                (later) seed, load, failure demos
-frontend/               (later) Flutter project
+frontend/               Flutter project (web, android, ios scaffolded)
 ```
 
 ## Configuration
@@ -133,5 +192,7 @@ wildcard CORS and default broker credentials.
 | `JWT_SECRET must be set...` | your `.env` still has the placeholder value |
 | `/health/ready` = 503 | `docker compose ps`; Postgres is the only *required* dependency |
 | `/health/ready` reports `broker: false` | RabbitMQ is down; committed orders are safe in the outbox (by design) |
-| Tests fail to connect | start the stack first: `docker compose up -d` |
+| Tests fail to connect | start the stack first: `docker compose up -d postgres rabbitmq` |
+| A worker keeps restarting | `docker compose logs <service>` — config errors are raised at startup on purpose |
+| Orders stuck in `PENDING` | check `docker compose logs outbox-dispatcher` and the `outbox_events` table (`last_error` column) |
 | Re-seed from scratch | `docker compose run --rm seed --reset` (deletes orders/users/menus) |

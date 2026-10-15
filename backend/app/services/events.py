@@ -21,6 +21,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.domain.enums import OutboxState
 from app.domain.ids import new_event_id, new_outbox_id
 from app.models import OutboxEvent
 
@@ -70,6 +71,8 @@ def enqueue_event(
     target_queue: str | None = None,
     available_at: dt.datetime | None = None,
     order_version: int | None = None,
+    state: OutboxState = OutboxState.PENDING,
+    retry_attempt: int | None = None,
 ) -> OutboxEvent:
     """Persist an outgoing event in the transactional outbox.
 
@@ -91,7 +94,9 @@ def enqueue_event(
         # Non-None only for retries: publish through the default exchange
         # directly to the failing consumer's queue (never re-broadcast).
         target_queue=target_queue,
+        retry_attempt=retry_attempt,
         payload=event,
+        state=state.value,
         available_at=available_at or dt.datetime.now(dt.timezone.utc),
     )
     db.add(record)

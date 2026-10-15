@@ -27,6 +27,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/alembic.ini ./
 COPY backend/migrations ./migrations
 COPY backend/app ./app
+COPY backend/workers ./workers
 
 RUN useradd --create-home --uid 10001 quickbite
 USER quickbite

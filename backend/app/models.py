@@ -322,12 +322,17 @@ class OutboxEvent(Base):
 
     Written in the same transaction as the domain change, published later by
     the dispatcher with publisher confirms and mandatory routing.
+
+    The row's own ``id`` is the unique *publication* identity. ``event_id``
+    is NOT unique here: a delayed retry republishes the same domain event
+    (same immutable event_id) as a second publication record — retry
+    attempts are delivery metadata, never a new event identity.
     """
 
     __tablename__ = "outbox_events"
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
-    event_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    event_id: Mapped[str] = mapped_column(String(64), nullable=False)
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     order_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
@@ -338,6 +343,9 @@ class OutboxEvent(Base):
     routing_key: Mapped[str] = mapped_column(String(80), nullable=False)
     # Target queue for retries routed through the default exchange ("" -> queue).
     target_queue: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    # Delivery metadata for retries: exposed to consumers as the x-attempt
+    # AMQP header. Never part of the immutable event payload.
+    retry_attempt: Mapped[int | None] = mapped_column(Integer, nullable=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, nullable=False)
     state: Mapped[str] = mapped_column(
         String(16), nullable=False, default=OutboxState.PENDING.value
@@ -356,11 +364,14 @@ class OutboxEvent(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "state IN ('PENDING','SENDING','SENT','FAILED')", name="ck_outbox_state"
+            "state IN ('PENDING','SCHEDULED','SENDING','SENT','FAILED')",
+            name="ck_outbox_state",
         ),
         # Dispatcher lease: claim only due, unsent records.
         Index("ix_outbox_dispatch", "state", "available_at"),
         Index("ix_outbox_order", "order_id"),
+        # Same event may be published more than once (at-least-once + retries).
+        Index("ix_outbox_event_id", "event_id"),
     )
 
 

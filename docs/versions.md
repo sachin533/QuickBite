@@ -35,6 +35,8 @@ Lockfiles are committed (`backend/uv.lock`); no floating `latest` tags are used.
 
 - Docker 29.8.1, Docker Compose v5.5.1
 - Python 3.12.8 (local), uv 0.10.6
+- Flutter 3.47.7 (SDK at `E:\flutter`, installed via SHA256-verified archive;
+  `flutter` added to the user `PATH`)
 - Windows 11 host
 
 ## Reproduce

@@ -1,11 +1,11 @@
-# QuickBite stack: PostgreSQL + RabbitMQ + FastAPI (+ one-shot migrate/seed).
+# QuickBite stack: PostgreSQL + RabbitMQ + FastAPI + 4 stage workers +
+# outbox dispatcher + retry scheduler (+ one-shot migrate/seed).
 #
 #   docker compose up -d --build
 #   docker compose run --rm migrate      # deliberate re-run of migrations
 #   docker compose run --rm seed         # deliberate re-run of seeding
 #
-# Worker/dispatcher/web services are added in later milestones. No
-# `container_name` and no fixed worker host ports, so scaling is free:
+# No `container_name` and no fixed worker host ports, so scaling is free:
 #   docker compose up -d --scale payment-worker=3
 
 name: quickbite
@@ -121,6 +121,45 @@ services:
       retries: 12
       start_period: 10s
     restart: unless-stopped
+
+  # --- async processing (Milestone 3) -------------------------------------
+  # Workers are stateless and scalable; the API never talks to RabbitMQ.
+  payment-worker: &worker-service
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.backend
+    command: ["python", "-m", "workers.payment"]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  restaurant-worker:
+    <<: *worker-service
+    command: ["python", "-m", "workers.restaurant"]
+
+  delivery-worker:
+    <<: *worker-service
+    command: ["python", "-m", "workers.delivery"]
+
+  notification-worker:
+    <<: *worker-service
+    command: ["python", "-m", "workers.notification"]
+
+  outbox-dispatcher:
+    <<: *worker-service
+    command: ["python", "-m", "workers.outbox_dispatcher"]
+
+  retry-scheduler:
+    <<: *worker-service
+    command: ["python", "-m", "workers.retry_scheduler"]
 
 volumes:
   pgdata:
