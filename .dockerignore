@@ -1,0 +1,13 @@
+# Build context is the repository root.
+.git
+.env
+**/.env
+!**/.env.example
+**/__pycache__
+**/.venv
+**/node_modules
+**/build
+**/.dart_tool
+frontend
+docs
+*.docx

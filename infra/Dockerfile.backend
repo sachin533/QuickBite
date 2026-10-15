@@ -1,0 +1,37 @@
+# syntax=docker/dockerfile:1.7
+# Shared image for the API service, workers, outbox dispatcher, retry
+# scheduler, and one-shot migration/seed jobs. The command differs per
+# service; separate processes share one image by design.
+#
+# Build context is the repository root:
+#   docker compose build api
+#   docker build -f infra/Dockerfile.backend backend
+
+FROM ghcr.io/astral-sh/uv:0.10.6 AS uv
+FROM python:3.12.8-slim-bookworm
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+
+# Dependency layer first: unchanged app code must not re-resolve packages.
+COPY --from=uv /uv /uvx /usr/local/bin/
+COPY backend/pyproject.toml backend/uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Application code + migrations (alembic reads migrations/ and alembic.ini).
+COPY backend/alembic.ini ./
+COPY backend/migrations ./migrations
+COPY backend/app ./app
+
+RUN useradd --create-home --uid 10001 quickbite
+USER quickbite
+
+EXPOSE 8000
+
+# Default: API service. Workers/dispatcher override `command:` in compose.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

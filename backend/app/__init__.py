@@ -1,0 +1,1 @@
+"""QuickBite backend application package."""

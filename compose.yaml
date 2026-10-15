@@ -1,0 +1,127 @@
+# QuickBite stack: PostgreSQL + RabbitMQ + FastAPI (+ one-shot migrate/seed).
+#
+#   docker compose up -d --build
+#   docker compose run --rm migrate      # deliberate re-run of migrations
+#   docker compose run --rm seed         # deliberate re-run of seeding
+#
+# Worker/dispatcher/web services are added in later milestones. No
+# `container_name` and no fixed worker host ports, so scaling is free:
+#   docker compose up -d --scale payment-worker=3
+
+name: quickbite
+
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_USER: quickbite
+      POSTGRES_PASSWORD: quickbite
+      POSTGRES_DB: quickbite
+    ports:
+      # Local training convenience only; not published in deployment.
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quickbite -d quickbite"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    ports:
+      # AMQP local only; management UI at http://localhost:15672 (guest/guest).
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # One-shot, repeatable steps (not competing startup jobs inside workers).
+  migrate:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.backend
+    command: ["alembic", "upgrade", "head"]
+    environment: &backend-env
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+psycopg://quickbite:quickbite@postgres:5432/quickbite
+      AMQP_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (see .env.example)}
+      JWT_EXPIRES_MINUTES: ${JWT_EXPIRES_MINUTES:-60}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:8080}
+      PAYMENT_MODE: ${PAYMENT_MODE:-success}
+      RESTAURANT_MODE: ${RESTAURANT_MODE:-success}
+      DELIVERY_MODE: ${DELIVERY_MODE:-success}
+      NOTIFICATION_MODE: ${NOTIFICATION_MODE:-success}
+      PAYMENT_DELAY_MS: ${PAYMENT_DELAY_MS:-150}
+      RESTAURANT_DELAY_MS: ${RESTAURANT_DELAY_MS:-100}
+      DELIVERY_DELAY_MS: ${DELIVERY_DELAY_MS:-100}
+      NOTIFICATION_DELAY_MS: ${NOTIFICATION_DELAY_MS:-50}
+      RETRY_MAX_ATTEMPTS: ${RETRY_MAX_ATTEMPTS:-3}
+      RETRY_DELAYS_SECONDS: ${RETRY_DELAYS_SECONDS:-2,10,30}
+      WORKER_PREFETCH: ${WORKER_PREFETCH:-8}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  seed:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.backend
+    command: ["python", "-m", "app.seed"]
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.backend
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--proxy-headers",
+      ]
+    environment: *backend-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3).status==200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  rabbitmqdata:

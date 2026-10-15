@@ -1,0 +1,30 @@
+# --- secrets / environment ------------------------------------------------
+.env
+*.env
+!.env.example
+*.pem
+*.key
+secrets/
+
+# --- python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# --- node / flutter -------------------------------------------------------
+node_modules/
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.log
+
+# --- docker / os ----------------------------------------------------------
+*.local
+.DS_Store
+Thumbs.db
