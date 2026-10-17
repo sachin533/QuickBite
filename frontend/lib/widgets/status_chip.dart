@@ -58,12 +58,18 @@ class StatusChip extends StatelessWidget {
               ),
               const SizedBox(width: 4),
             ],
-            Text(
-              statusLabel(status),
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: dense ? 11.5 : 13,
+            Flexible(
+              child: Text(
+                statusLabel(status),
+                maxLines: 1,
+                // Shrink (never overflow) when a large text scale squeezes the
+                // pill inside a Row at a narrow width.
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: dense ? 11.5 : 13,
+                ),
               ),
             ),
             if (terminal && !success && !failed) ...[

@@ -60,10 +60,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # Real food photography for the seeded catalogue (and hero shots for the
+  # home page). Served as separate files by the web build, so they are fetched
+  # on demand — they never block the first paint of the login screen.
+  assets:
+    - assets/food/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/api_client.dart';
+import 'core/theme.dart';
 import 'screens/cart_screen.dart';
 import 'screens/home_shell.dart';
 import 'screens/menu_screen.dart';
@@ -62,26 +63,8 @@ class QuickBiteApp extends StatelessWidget {
     );
   }
 
-  static ThemeData _theme(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFFD9480F),
-      brightness: brightness,
-    );
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      ),
-    );
-  }
+  static ThemeData _theme(Brightness brightness) =>
+      quickbiteTheme(brightness);
 
   /// Deep link: home shell underneath + the target screen on top.
   static List<Route<dynamic>> _initialRoutes(String initialRoute) {
@@ -133,6 +116,14 @@ class QuickBiteApp extends StatelessWidget {
 
     if (segments.length == 2 && segments[0] == 'restaurants') {
       return MenuScreen(restaurantId: segments[1]);
+    }
+    if (path == '/menu') {
+      // Full catalogue across every open kitchen; the home page's category
+      // cards and "view full menu" actions land here.
+      return MenuScreen(
+        initialCategory: uri.queryParameters['category'],
+        initialQuery: uri.queryParameters['q'],
+      );
     }
     if (segments.length == 2 && segments[0] == 'orders') {
       return OrderDetailsScreen(

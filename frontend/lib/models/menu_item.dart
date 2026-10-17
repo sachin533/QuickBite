@@ -10,6 +10,10 @@ class MenuItem {
     required this.priceMinor,
     required this.currency,
     required this.isAvailable,
+    this.imageUrl,
+    this.restaurantName,
+    this.restaurantCuisine,
+    this.restaurantIsOpen = true,
   });
 
   final String id;
@@ -20,6 +24,15 @@ class MenuItem {
   final int priceMinor;
   final String currency;
   final bool isAvailable;
+
+  /// Image reference: an absolute http(s) URL, or a bundled asset path such as
+  /// `assets/food/chicken_dum_biryani.jpg`. Null when a dish has no photo yet.
+  final String? imageUrl;
+
+  /// Filled by the global catalogue endpoint (`/api/v1/menu`) only.
+  final String? restaurantName;
+  final String? restaurantCuisine;
+  final bool restaurantIsOpen;
 
   factory MenuItem.fromJson(Object? json) {
     final map = json as Map<String, dynamic>;
@@ -32,6 +45,10 @@ class MenuItem {
       priceMinor: (map['price_minor'] as num).toInt(),
       currency: map['currency'] as String? ?? 'INR',
       isAvailable: map['is_available'] as bool? ?? true,
+      imageUrl: map['image_url'] as String?,
+      restaurantName: map['restaurant_name'] as String?,
+      restaurantCuisine: map['restaurant_cuisine'] as String?,
+      restaurantIsOpen: map['restaurant_is_open'] as bool? ?? true,
     );
   }
 
@@ -45,5 +62,6 @@ class MenuItem {
         'price_minor': priceMinor,
         'currency': currency,
         'is_available': isAvailable,
+        'image_url': imageUrl,
       };
 }

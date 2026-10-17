@@ -610,17 +610,22 @@ class _TimelineTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  // Wrap, not Row: at 1.5x text scale the status pill can need
+                  // the full width, so it drops to its own line instead of
+                  // overflowing the tile.
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          entry.fromStatus == null
-                              ? statusLabel(entry.toStatus)
-                              : '${statusLabel(entry.fromStatus!)} → '
-                                  '${statusLabel(entry.toStatus)}',
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
+                      Text(
+                        entry.fromStatus == null
+                            ? statusLabel(entry.toStatus)
+                            : '${statusLabel(entry.fromStatus!)} → '
+                                '${statusLabel(entry.toStatus)}',
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       StatusChip(status: entry.toStatus, dense: true),
                     ],
@@ -662,11 +667,15 @@ class _NotificationsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            // Wrap so the heading text can flow below the icon instead of
+            // overflowing a Row at large text scales.
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Icon(Icons.notifications_none,
                     size: 20, color: theme.colorScheme.primary),
-                const SizedBox(width: 6),
                 Text('Notifications',
                     style: theme.textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.w700)),

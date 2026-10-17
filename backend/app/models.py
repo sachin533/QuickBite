@@ -107,6 +107,9 @@ class MenuItem(Base):
     price_minor: Mapped[int] = mapped_column(Integer, nullable=False)
     is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Image reference: either an absolute http(s) URL or a bundled frontend
+    # asset path (``assets/food/....jpg``). Nullable so existing rows keep working.
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

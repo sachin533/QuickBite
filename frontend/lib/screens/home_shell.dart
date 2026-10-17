@@ -128,12 +128,21 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ];
 
+        // Tab 0 (browse) renders its own branded header — logo, in-page
+        // navigation, search, cart and account menu — so the shell only
+        // labels the secondary tabs. This also keeps exactly one
+        // "Cart (N)" affordance on screen at a time.
+        final showAppBar = _tab != 0;
+        final appBar = showAppBar
+            ? AppBar(
+                title: Text(_titles[_tab]),
+                actions: actions,
+              )
+            : null;
+
         if (wide) {
           return Scaffold(
-            appBar: AppBar(
-              title: Text(_titles[_tab]),
-              actions: actions,
-            ),
+            appBar: appBar,
             body: Row(
               children: [
                 NavigationRail(
@@ -161,10 +170,7 @@ class _HomeShellState extends State<HomeShell> {
         }
 
         return Scaffold(
-          appBar: AppBar(
-            title: Text(_titles[_tab]),
-            actions: actions,
-          ),
+          appBar: appBar,
           body: body,
           bottomNavigationBar: NavigationBar(
             selectedIndex: _tab,

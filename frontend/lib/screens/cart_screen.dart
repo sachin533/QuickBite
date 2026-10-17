@@ -478,16 +478,25 @@ class _OrderSummaryPanel extends StatelessWidget {
             _Row(label: 'Restaurant', value: restaurantName),
             _Row(label: 'Items', value: '$itemCount'),
             const Divider(height: 20),
+            // Flexible (not just spaceBetween): both sides must be allowed to
+            // shrink at large text scales or the row overflows on a phone.
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Subtotal',
-                    style: theme.textTheme.bodyLarge
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-                Text(
-                  formatMoney(subtotalMinor, currency),
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                Flexible(
+                  child: Text('Subtotal',
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    formatMoney(subtotalMinor, currency),
+                    textAlign: TextAlign.end,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ],
             ),
@@ -572,9 +581,13 @@ class _Row extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Flexible(
+            child: Text(label,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium),
+          ),
+          const SizedBox(width: 8),
           Flexible(
             child: Text(
               value,

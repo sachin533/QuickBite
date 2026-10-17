@@ -1,8 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required to talk to the QuickBite API. Without this the release APK
+         has no network access at all and every request fails. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
-        android:label="quickbite"
+        android:label="QuickBite"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

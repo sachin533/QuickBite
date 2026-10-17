@@ -31,8 +31,25 @@ class MenuItemOut(BaseModel):
     price_minor: int = Field(gt=0)
     currency: str
     is_available: bool
+    # Image reference: absolute http(s) URL or a bundled asset path.
+    image_url: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class MenuItemWithRestaurantOut(MenuItemOut):
+    """Menu item enriched with its parent restaurant (global catalogue)."""
+
+    restaurant_name: str = ""
+    restaurant_cuisine: str = ""
+    restaurant_is_open: bool = True
+
+
+class CategoryOut(BaseModel):
+    """A distinct menu category with how many available items it holds."""
+
+    name: str
+    item_count: int = Field(ge=0)
 
 
 class RestaurantDetailOut(RestaurantOut):
